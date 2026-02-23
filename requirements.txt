@@ -1,0 +1,8 @@
+numpy>=2.0
+pandas>=2.0
+yfinance>=0.2.40
+scikit-learn>=1.4
+networkx>=3.2
+manim>=0.20.0
+plotly>=5.20
+streamlit>=1.33
