@@ -6,7 +6,9 @@ It is meant for **visualization + intuition**, not for investment advice or a pr
 
 ### Demo
 
-https://github.com/tatsunori-ono/graph-diffusion-price-predictor/releases/download/v1.0/GraphDiffusionPricePredictor.mp4
+![Demo preview](media/demo_preview.gif)
+
+[Watch full video (1080p)](https://github.com/tatsunori-ono/graph-diffusion-price-predictor/releases/download/v1.0/GraphDiffusionPricePredictor.mp4)
 
 ---
 
