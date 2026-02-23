@@ -1,8 +1,8 @@
-# Graph Diffusion Price Predictor (Manim + Streamlit)
+# Graph Diffusion Price Predictor
 
 This mini-project focuses on **one idea**: treat a universe of stocks as a **graph**, diffuse a **cross‑sectional signal** over that graph (message passing), then use the diffused signal to predict **next‑day log returns** (and therefore next‑day prices).
 
-It is meant for **visualization + intuition**, not for investment advice or a production trading system.
+It is meant for **visualisation and intuition**, not for investment advice or a production trading system.
 
 ### Demo
 
