@@ -1,0 +1,57 @@
+# Universe configuration for Cross-Asset Graph Diffusion Signals
+#
+# Sector groupings are used to (a) build economically-motivated priors for the
+# correlation graph discussion in the report, and (b) compute sector benchmark
+# return features. They are NOT used to leak information into the model beyond
+# what is already public knowledge of static sector membership (this is not a
+# forward-looking or return-based classification, so it does not introduce
+# look-ahead bias).
+
+start_date: "2015-01-01"
+end_date: null  # null = latest available trading day
+
+sectors:
+  semiconductors_tech:
+    - NVDA
+    - AMD
+    - INTC
+    - AVGO
+    - QCOM
+    - MU
+    - TXN
+    - AMAT
+    - LRCX
+    - KLAC
+    - ASML
+    - TSM
+    - ARM
+  japan_media_gaming_ip:
+    - SONY
+    - NTDOY
+    - SE
+    - EA
+    - TTWO
+    - RBLX
+    - BILI
+  transport_logistics:
+    - DAL
+    - UAL
+    - AAL
+    - LUV
+    - UPS
+    - FDX
+    - CSX
+    - UNP
+    - CNI
+
+benchmarks:
+  - SPY
+  - QQQ
+  - SMH
+  - IYT
+
+# Minimum number of trading days of history required for a ticker to be kept
+# in the modelling universe (removes very recent IPOs with insufficient
+# history for rolling-window features). This is a data-quality filter applied
+# using only each ticker's own trailing history, not future information.
+min_history_days: 500
