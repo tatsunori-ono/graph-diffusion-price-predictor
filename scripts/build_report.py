@@ -174,6 +174,22 @@ def main(args=None):
             "the identical code path and will produce genuine results.\n"
         )
 
+    results_title = (
+        "## 7. Synthetic-Data Smoke-Test Result (Not a Research Finding)"
+        if used_synthetic
+        else "## 7. Real-Market-Data Result"
+    )
+    results_caveat = (
+        "\n*This section exists to prove the pipeline runs correctly end-to-end and is "
+        "leakage-safe on realistic-looking input. It is a placebo dataset with no injected "
+        "lead-lag effect, so it is deliberately **not** presented as a finding about real "
+        "markets -- re-run `make data` with internet access and rebuild this report to replace "
+        "this section with a genuine result.*\n"
+        if used_synthetic
+        else "\n*Computed on live adjusted OHLCV data via yfinance (see Section 3 for exact "
+        "coverage). This is the section that matters for any CV or interview claim.*\n"
+    )
+
     md = f"""# Cross-Asset Graph Diffusion Signals for Equity Return Prediction
 
 *A walk-forward equity research study across semiconductor, Japanese media/gaming, and transport/logistics equities.*
@@ -185,8 +201,8 @@ equities -- driven by supply-chain, thematic, and investor-flow linkages -- cont
 predictive information for next-day residual equity returns. A rolling correlation graph is built
 strictly from past returns, and lagged neighbour return / residual-shock features derived from
 that graph are fed into interpretable linear models (Ridge, ElasticNet) inside a walk-forward
-backtest with realistic transaction costs. The headline out-of-sample net Sharpe ratio for the
-Ridge strategy over the test period is **{fmtn(summary['ridge']['net'].get('Sharpe Ratio'))}**,
+backtest with realistic transaction costs. {"**The numbers quoted below are from a synthetic-data smoke test** (see the data notice above), included to demonstrate the pipeline runs correctly end-to-end and is leakage-safe -- they are not a claim about real markets. " if used_synthetic else ""}The headline out-of-sample net Sharpe ratio for the
+Ridge strategy over the {"synthetic smoke-test " if used_synthetic else ""}test period is **{fmtn(summary['ridge']['net'].get('Sharpe Ratio'))}**,
 versus **{fmtn(summary.get('benchmark_SPY', {}).get('Sharpe Ratio', float('nan')))}** for buy-and-hold SPY.
 {"This is a weak/negative result and is reported honestly -- see Sections 9 and the failure-case discussion." if (summary['ridge']['net'].get('Sharpe Ratio') or 0) < 0.3 else "Results are modest and are discussed critically alongside their statistical significance below."}
 
@@ -259,8 +275,8 @@ Costs are charged as `cost_bps / 10,000 * sum(|weight change|)` at each rebalanc
 to gross traded notional. Default: {bt['costs']['default_bps']} bps one-way. Sensitivity is reported
 at {", ".join(str(b) for b in bt['costs']['sensitivity_bps'])} bps.
 
-## 7. Results
-
+{results_title}
+{results_caveat}
 ![Equity Curve](figures/equity_curve.png)
 
 {report_mod.df_to_markdown_table(headline, float_format="{:.4f}")}

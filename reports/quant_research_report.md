@@ -11,8 +11,8 @@ equities -- driven by supply-chain, thematic, and investor-flow linkages -- cont
 predictive information for next-day residual equity returns. A rolling correlation graph is built
 strictly from past returns, and lagged neighbour return / residual-shock features derived from
 that graph are fed into interpretable linear models (Ridge, ElasticNet) inside a walk-forward
-backtest with realistic transaction costs. The headline out-of-sample net Sharpe ratio for the
-Ridge strategy over the test period is **-0.18**,
+backtest with realistic transaction costs. **The numbers quoted below are from a synthetic-data smoke test** (see the data notice above), included to demonstrate the pipeline runs correctly end-to-end and is leakage-safe -- they are not a claim about real markets. The headline out-of-sample net Sharpe ratio for the
+Ridge strategy over the synthetic smoke-test test period is **-0.18**,
 versus **0.40** for buy-and-hold SPY.
 This is a weak/negative result and is reported honestly -- see Sections 9 and the failure-case discussion.
 
@@ -85,7 +85,9 @@ Costs are charged as `cost_bps / 10,000 * sum(|weight change|)` at each rebalanc
 to gross traded notional. Default: 5 bps one-way. Sensitivity is reported
 at 0, 2, 5, 10, 25 bps.
 
-## 7. Results
+## 7. Synthetic-Data Smoke-Test Result (Not a Research Finding)
+
+*This section exists to prove the pipeline runs correctly end-to-end and is leakage-safe on realistic-looking input. It is a placebo dataset with no injected lead-lag effect, so it is deliberately **not** presented as a finding about real markets -- re-run `make data` with internet access and rebuild this report to replace this section with a genuine result.*
 
 ![Equity Curve](figures/equity_curve.png)
 

@@ -4,13 +4,27 @@ A leakage-safe, walk-forward equity research pipeline that tests whether informa
 diffuse across economically connected companies -- semiconductors, Japanese media/gaming/IP, and
 transport/logistics -- with a short, exploitable delay.
 
-> **This build's example results used synthetic data, not live markets.** The sandbox this
-> repository was built in could not reach Yahoo Finance, so `make data` automatically fell back to
-> a calibrated synthetic OHLCV generator (see `data/raw/SYNTHETIC_DATA_NOTICE.txt` and
-> [Data notice](#data-notice) below). The code path for real data is identical and untouched --
-> run `make data` yourself with a working connection to get genuine results. Every number in
-> [Headline Results](#headline-results) below is from that synthetic placebo run and should be read
-> as "the pipeline works end-to-end and is leakage-safe," not as a claim about real markets.
+> **Not yet CV-ready: this build's numbers are a synthetic-data smoke test, not a research result.**
+> The sandbox this repository was first built in could not reach Yahoo Finance, so `make data`
+> automatically fell back to a calibrated synthetic OHLCV generator (see
+> `data/raw/SYNTHETIC_DATA_NOTICE.txt`). The code path for real data is identical and untouched.
+> Section 6 below ([Synthetic-Data Smoke-Test Result](#6-synthetic-data-smoke-test-result-not-a-research-finding))
+> exists only to prove the pipeline runs correctly end-to-end and is leakage-safe -- it is **not**
+> evidence for or against the hypothesis in real markets, and should not be quoted as a project
+> result in a CV or interview. Before relying on this repo for that, run it locally with a normal
+> internet connection:
+>
+> ```bash
+> cd graph-diffusion-signals
+> make install
+> make data       # confirm data/raw/ now has real ticker CSVs, no SYNTHETIC_DATA_NOTICE.txt
+> make backtest
+> make report      # confirm the report's data notice no longer says "synthetic"
+> make test
+> ```
+>
+> Then fill in Section 7, [Real-Market-Data Result](#7-real-market-data-result-fill-in-after-running-locally),
+> with the actual output.
 
 ## 1. Project Summary
 
@@ -88,10 +102,12 @@ make smoke        # fast (~seconds) end-to-end sanity check on a tiny universe/d
 
 Or via the CLI directly: `python -m graph_diffusion_signal.cli {data,backtest,report}`.
 
-## 6. Headline Results
+## 6. Synthetic-Data Smoke-Test Result (Not a Research Finding)
 
-*(Synthetic/placebo data -- see the notice at the top of this file. Test period 2019-01-01 onward,
-quarterly walk-forward refit, 5 bps one-way transaction costs.)*
+*(Synthetic/placebo data -- see the notice at the top of this file. This section exists to show the
+pipeline runs end-to-end and produces sane, leakage-safe output; it is not a claim about real
+markets and should not be cited as a project result. Test period 2019-01-01 onward, quarterly
+walk-forward refit, 5 bps one-way transaction costs.)*
 
 | Strategy | Net Ann. Return | Net Sharpe | Gross Sharpe | Avg Daily Turnover |
 | --- | --- | --- | --- | --- |
@@ -106,20 +122,36 @@ quarterly walk-forward refit, 5 bps one-way transaction costs.)*
 Permutation test on the Ridge signal: Spearman IC = 0.006, p = 0.15 (not significant). Bootstrap 90%
 Sharpe CI: [-0.76, 0.40] (straddles zero). **Conclusion on this synthetic run: no cost-robust edge.**
 Gross Sharpe is positive but modest, and is fully consumed (and reversed) by transaction costs at
-realistic turnover -- this is reported honestly as the finding, not reframed as a success. Full
-tables, the annual-returns breakdown, and the cost/parameter sensitivity sweeps are in
-[`reports/quant_research_report.pdf`](reports/quant_research_report.pdf).
+realistic turnover. Full tables, the annual-returns breakdown, and the cost/parameter sensitivity
+sweeps are in [`reports/quant_research_report.pdf`](reports/quant_research_report.pdf).
 
-## 7. Key Plots
+## 7. Real-Market-Data Result (fill in after running locally)
+
+**Not yet generated.** Run the commands in the notice at the top of this file on a machine with a
+normal internet connection, then replace this whole section with the real output: the headline
+table (same columns as Section 6), the permutation test and bootstrap CI numbers, and one or two
+sentences on whether the signal survived transaction costs. A weak or negative real-data result is
+a perfectly fine, honest outcome to report -- see the [Interview Talking Points](#interview-talking-points)
+below for how to frame it either way.
+
+Checklist before treating this as done:
+
+* [ ] `data/raw/` contains real ticker CSVs and **no** `SYNTHETIC_DATA_NOTICE.txt`
+* [ ] `reports/quant_research_report.pdf` / `.md` no longer shows the synthetic-data notice
+* [ ] `make test` still passes
+* [ ] This section replaced with the real headline table and a one-line honest verdict
+
+## 8. Key Plots
 
 See `reports/figures/`: `equity_curve.png`, `drawdown.png`, `year_by_year.png`,
 `cost_sensitivity.png`, `avg_abs_coefficients.png`, `coefficients_over_time.png`,
-`graph_param_sensitivity.png`.
+`graph_param_sensitivity.png`. (Regenerate these by re-running `make report` after `make backtest`
+on real data -- they currently reflect the synthetic smoke test.)
 
-## 8. Limitations
+## 9. Limitations
 
-* **Synthetic data in this environment.** See the notice at the top -- results here demonstrate
-  pipeline correctness, not a real-market finding.
+* **Synthetic data in this environment.** See the notice at the top -- Section 6 demonstrates
+  pipeline correctness, not a real-market finding. Section 7 is the one that matters for a CV claim.
 * **No survivorship-bias correction.** The universe is today's liquid names in each sector, not a
   point-in-time constituent list.
 * **Small universe (29 names).** Not enough breadth to diversify idiosyncratic risk in a 20%/20%
@@ -130,7 +162,7 @@ See `reports/figures/`: `equity_curve.png`, `drawdown.png`, `year_by_year.png`,
   sensitivity sweep, not an independent validation universe.
 * Full discussion in `reports/quant_research_report.pdf`, Section 9.
 
-## 9. What This Demonstrates (for Quant Recruiters)
+## 10. What This Demonstrates (for Quant Recruiters)
 
 * **Independent signal research:** a specific, falsifiable hypothesis (short-horizon cross-asset
   diffusion via a dynamic correlation graph), motivated by real sector structure rather than
@@ -146,13 +178,22 @@ See `reports/figures/`: `equity_curve.png`, `drawdown.png`, `year_by_year.png`,
   a CLI, a Makefile, unit tests (including a dedicated leakage-correctness suite), deterministic
   seeding, logging instead of print spam, and a reproducible PDF report pipeline.
 
-## 10. Possible CV Bullet
+## 11. Possible CV Bullet
 
-See [CV Bullet Options](#cv-bullet-options) below.
+See [CV Bullet Options](#cv-bullet-options) below -- pick the negative-result or positive-result
+phrasing based on what Section 7 actually says once you've run real data.
 
 ---
 
 ## Interview Talking Points
+
+**One-line answer if asked directly why the repo shows synthetic data:** "The first environment I
+built this in blocked Yahoo Finance, so I designed the pipeline to fail safely into a synthetic
+placebo dataset rather than silently producing no output. I did not treat that as evidence of
+alpha -- it's clearly labelled as a smoke test, not a result. Once run locally on real market data,
+the same pipeline downloads adjusted OHLCV, rebuilds the rolling graphs without future leakage, and
+regenerates the full report." That's the answer to have ready; it demonstrates research integrity
+rather than trying to hide the fallback.
 
 **Why graph diffusion, specifically?** Static sector labels are a blunt instrument -- the actual
 economic linkages between, say, a GPU maker and a game publisher shift over time (a console cycle,
@@ -204,6 +245,34 @@ modular stages, checkpoint-able intermediate outputs), and treating "no leakage"
 property to be tested, not just asserted in a comment.
 
 ## CV Bullet Options
+
+**First, pick based on the real-data result in Section 7** (fill that in before using any of these
+on an actual CV):
+
+* If real-data performance is **weak/negative** (a perfectly fine, honest outcome):
+  > Built a leakage-safe Python research framework testing cross-asset graph-diffusion equity
+  > signals with walk-forward validation, transaction costs, benchmark comparison, permutation
+  > tests, and Sharpe/drawdown analysis.
+* If real-data performance is **decent**:
+  > Built a walk-forward equity research pipeline testing graph-diffusion signals across
+  > semiconductor, media, and logistics equities, evaluating transaction costs, benchmark-relative
+  > returns, Sharpe, drawdown, and statistical robustness.
+
+**Then, role-specific versions** (combine with whichever result framing above matches Section 7):
+
+1. **Quant Research version (Citadel QR):**
+   > Researched cross-asset graph-diffusion signals for equity return prediction, using rolling
+   > correlation networks, residual-return targets, walk-forward validation, transaction-cost
+   > sensitivity, and permutation-based robustness checks.
+
+2. **Quant Developer version (G-Research):**
+   > Engineered a reproducible Python backtesting framework with rolling correlation graphs,
+   > leakage-safe feature generation, CLI automation, unit tests, transaction-cost modelling, and
+   > automated PDF reporting.
+
+3. **Investment Banking / Tech Sector Research version.**
+
+Longer role-specific drafts, spelled out in full:
 
 1. **Quant Research version:** Designed and tested a cross-asset graph-diffusion hypothesis for
    equity residual returns across semiconductor, Japanese media/gaming, and transport/logistics
