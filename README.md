@@ -1,5 +1,13 @@
 # Graph Diffusion Equity Research
 
+![Demo preview](demos/visual_prototype/media/demo_preview.gif)
+
+*The animation above is the original visual prototype — a Manim/Streamlit graph-diffusion demo (see
+[`demos/visual_prototype/`](demos/visual_prototype/README.md),
+[full video](https://github.com/tatsunori-ono/graph-diffusion-price-predictor/releases/download/v1.0/GraphDiffusionPricePredictor.mp4)).
+It's what the idea looked like before it became the research framework below — see
+[Project Evolution](#1-project-evolution) for how the two connect.*
+
 > **Honest headline: the real-market-data result is negative.** This repository has been run
 > end-to-end on live Yahoo Finance data (not a synthetic placeholder — see
 > [Section 6, Results](#6-results)). The graph-diffusion signal, as implemented here, does **not**
