@@ -8,15 +8,6 @@
 It's what the idea looked like before it became the research framework below — see
 [Project Evolution](#1-project-evolution) for how the two connect.*
 
-> **Honest headline: the real-market-data result is negative.** This repository has been run
-> end-to-end on live Yahoo Finance data (not a synthetic placeholder — see
-> [Section 6, Results](#6-results)). The graph-diffusion signal, as implemented here, does **not**
-> show a cost-robust edge over the 2019–2026 test period: net Sharpe for the Ridge strategy is
-> **-1.81** against **+0.92** for buy-and-hold SPY, and the permutation test finds no significant
-> rank relationship between predictions and forward returns. This is reported as a genuine research
-> finding, not reframed as a success — see Section 6 for the full numbers and Section 9 for how to
-> talk about a negative result in an interview.
-
 This project tests whether cross-asset information diffusion in equity markets can be captured with
 rolling correlation graphs and evaluated honestly through a leakage-safe, walk-forward backtesting
 framework. It builds a dynamic correlation graph over a ~29-stock universe (semiconductors/tech,
