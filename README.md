@@ -1,113 +1,186 @@
-# Cross-Asset Graph Diffusion Signals for Equity Return Prediction
+# Graph Diffusion Equity Research
 
-A leakage-safe, walk-forward equity research pipeline that tests whether information shocks
-diffuse across economically connected companies -- semiconductors, Japanese media/gaming/IP, and
-transport/logistics -- with a short, exploitable delay.
+> **Honest headline: the real-market-data result is negative.** This repository has been run
+> end-to-end on live Yahoo Finance data (not a synthetic placeholder — see
+> [Section 6, Results](#6-results)). The graph-diffusion signal, as implemented here, does **not**
+> show a cost-robust edge over the 2019–2026 test period: net Sharpe for the Ridge strategy is
+> **-1.81** against **+0.92** for buy-and-hold SPY, and the permutation test finds no significant
+> rank relationship between predictions and forward returns. This is reported as a genuine research
+> finding, not reframed as a success — see Section 6 for the full numbers and Section 9 for how to
+> talk about a negative result in an interview.
 
-> **Not yet CV-ready: this build's numbers are a synthetic-data smoke test, not a research result.**
-> The sandbox this repository was first built in could not reach Yahoo Finance, so `make data`
-> automatically fell back to a calibrated synthetic OHLCV generator (see
-> `data/raw/SYNTHETIC_DATA_NOTICE.txt`). The code path for real data is identical and untouched.
-> Section 6 below ([Synthetic-Data Smoke-Test Result](#6-synthetic-data-smoke-test-result-not-a-research-finding))
-> exists only to prove the pipeline runs correctly end-to-end and is leakage-safe -- it is **not**
-> evidence for or against the hypothesis in real markets, and should not be quoted as a project
-> result in a CV or interview. Before relying on this repo for that, run it locally with a normal
-> internet connection:
->
-> ```bash
-> cd graph-diffusion-signals
-> make install
-> make data       # confirm data/raw/ now has real ticker CSVs, no SYNTHETIC_DATA_NOTICE.txt
-> make backtest
-> make report      # confirm the report's data notice no longer says "synthetic"
-> make test
-> ```
->
-> Then fill in Section 7, [Real-Market-Data Result](#7-real-market-data-result-fill-in-after-running-locally),
-> with the actual output.
+This project tests whether cross-asset information diffusion in equity markets can be captured with
+rolling correlation graphs and evaluated honestly through a leakage-safe, walk-forward backtesting
+framework. It builds a dynamic correlation graph over a ~29-stock universe (semiconductors/tech,
+Japanese media/gaming/IP, and transport/logistics, plus sector benchmarks), engineers graph-diffusion
+features (lagged neighbour returns, residual-shock scores, weighted-degree centrality) alongside
+standard own-return/volatility/momentum features, and feeds them into interpretable linear models
+inside a walk-forward backtest with realistic transaction costs, benchmark comparison, and
+statistical robustness checks (permutation tests, bootstrap confidence intervals). Every stage —
+graph construction, feature timing, model refitting, portfolio weighting — is built to a strict
+no-look-ahead discipline that is directly tested, not just asserted.
 
-## 1. Project Summary
+## 1. Project Evolution
 
-This repository builds a rolling correlation graph over a ~29-stock universe (semiconductors/tech,
-Japanese media/gaming/IP, transport/logistics) plus four sector benchmarks, engineers graph-aware
-features (neighbour return/residual diffusion scores, weighted-degree centrality) alongside standard
-own-return, volatility, and momentum/reversal features, and feeds them into interpretable linear
-models (Ridge, ElasticNet) and a zero-parameter rank baseline inside a walk-forward backtest with
-realistic transaction costs. Every step -- graph construction, feature timing, model refitting,
-portfolio weighting -- is built to a strict no-look-ahead discipline, checked directly by an
-automated leakage test (`tests/test_backtest_no_lookahead.py`) that perturbs future returns and
-confirms past predictions never change. The honest headline finding on the (synthetic, placebo)
-data available in this environment: gross signal is weak and does **not** survive realistic
-transaction costs -- reported as-is rather than dressed up.
+This repository is one idea that matured through two stages, not two separate projects bolted
+together:
 
-## 2. Why This Hypothesis Could Exist
+1. **[`demos/visual_prototype/`](demos/visual_prototype/README.md)** — the original prototype. A
+   Manim animation and a Streamlit app that treat a small stock universe as a graph, diffuse a
+   cross-sectional signal across it, and visualise the result. Built for **intuition**: it is how
+   the idea was first explored, not a validated result. No walk-forward validation, no transaction
+   costs, no statistical testing.
+2. **The repository root (`src/`, `tests/`, `config/`, `scripts/`, `reports/`)** — the research
+   edition. The same underlying idea (diffusion of information across a correlation graph) rebuilt
+   as a rigorous, leakage-safe quant research framework: walk-forward validation with periodic
+   refits, realistic transaction costs, benchmark comparison against SPY/QQQ/SMH/IYT, permutation
+   and bootstrap significance tests, an explicit failure-case and limitations analysis, and an
+   automated PDF report.
 
-Companies in the same sector, supply chain, or thematic bucket share exposure to common shocks (a
-foundry capacity update, a console hardware refresh, a fuel-price move), but the market doesn't
-necessarily price that shared exposure into every related name at the same instant. A name with
-lower analyst coverage, lower liquidity, or a less obvious read-through to the news event may react
-with a lag as flows, arbitrage desks, and index/ETF rebalancing slowly connect the dots. A **rolling
-correlation graph** (rather than a static sector label) is used because economic linkages between
-these companies are not fixed -- supply-chain relationships, thematic overlap ("AI capex" pulling
-semiconductor and hyperscaler-adjacent names together), and investor-flow correlation all drift over
-time. If a short diffusion delay exists and is even weakly persistent, a stock's lagged neighbour
-returns (from the graph) should carry information about its own near-future **residual** return
-(i.e. after stripping out market and sector beta).
+Read the visual prototype first if you want the intuition; read everything from Section 4 onward if
+you're evaluating this as research/engineering work. The prototype is preserved in full (animations,
+demo CSVs, Streamlit viewer) because it's useful context for how the hypothesis was formed — but it
+is explicitly secondary to the research framework, which is what should be judged as the project's
+output.
 
-## 3. Methodology / Pipeline
+## 2. Research Hypothesis
+
+Information shocks affecting one company may propagate to economically or thematically related
+companies with a short delay, rather than being priced into all related names simultaneously.
+A **rolling correlation graph** — rather than a static sector label — is used to approximate these
+changing relationships, since the actual linkages between companies (supply chains, thematic
+overlap, investor-flow correlation) drift over time. If such a delay exists and is even weakly
+persistent, a stock's **lagged neighbour returns** (as defined by that rolling graph) and its
+**residual-shock features** may carry information about its own near-future **residual return** —
+i.e. its return after stripping out market and sector beta.
+
+## 3. Why the Signal Might Exist
+
+The hypothesis is motivated by several plausible (but not proven) transmission mechanisms:
+
+* **Supply-chain links** — a shock to a foundry or component supplier can take time to be reflected
+  in downstream customers' prices.
+* **ETF / index / thematic flows** — capital rotating into a theme (e.g. "AI capex") can pull
+  correlated names together with staggered timing as flows and rebalancing propagate.
+* **Sector rotation** — broad allocation shifts between sectors can hit constituent names at
+  different speeds depending on liquidity and coverage.
+* **Delayed investor reaction** — lower-coverage or lower-liquidity names may react to news with a
+  lag as fewer participants immediately reprice them.
+* **Common factor exposure** — shared exposure to market/sector/style factors that isn't always
+  priced in simultaneously across all exposed names.
+* **Attention / news diffusion** — news and analyst attention spreading across related names over
+  hours to days rather than instantaneously.
+
+None of these are asserted as proven effects here — they are the economic rationale for why the
+hypothesis is worth testing rigorously rather than dismissing outright, and the results in this repo
+should be read as a genuine test of that hypothesis, not a foregone conclusion.
+
+## 4. Methodology
 
 ```
 yfinance (or cached CSV / synthetic fallback)
         |
-   data.py  --> clean + align trading calendar, drop low-history tickers
+   data.py       --> clean + align trading calendar, drop low-history tickers
         |
-   features.py --> rolling-beta residual returns (t-1 betas only)
+   features.py   --> rolling-beta residual returns (t-1 betas only)
         |
-   graph.py  --> rolling correlation graph, window ends at t-1, top-k positive edges, row-normalised
+   graph.py      --> rolling correlation graph, window ends at t-1, top-k positive edges, row-normalised
         |
-   features.py --> own returns, vol, volume surprise, neighbour diffusion/shock scores,
-        |          centrality, sector/market return, momentum/reversal  [all known by close of f]
+   features.py   --> own returns, vol, volume surprise, neighbour diffusion/shock scores,
+        |             centrality, sector/market return, momentum/reversal  [all known by close of t]
         |
-   backtest.py --> walk-forward: train on date < boundary, predict [boundary, next boundary)
-        |          models: Ridge / ElasticNet (StandardScaler refit per fold) / rank-on-diffusion-score
+   backtest.py   --> walk-forward: train on date < boundary, predict [boundary, next boundary)
+        |             models: Ridge / ElasticNet (StandardScaler refit per fold) / rank-on-diffusion-score
         |
-   portfolio.py --> rank cross-section, dollar-neutral long/short quantiles, position cap, turnover
+   portfolio.py  --> rank cross-section, dollar-neutral long/short quantiles, position cap, turnover,
+        |             transaction costs applied against realised turnover
         |
-   metrics.py / plots.py / report.py --> Sharpe/Sortino/drawdown/alpha/IR, permutation + bootstrap
-                                          tests, cost sensitivity, parameter sensitivity, PDF report
+   metrics.py / plots.py / report.py --> Sharpe/Sortino/drawdown/alpha/IR, benchmark comparison,
+                                          permutation + bootstrap tests, cost sensitivity,
+                                          parameter sensitivity, automated PDF report
 ```
 
-Full timing/leakage conventions are documented in the module docstrings of `graph.py`,
-`features.py`, and `backtest.py`, and enforced by `tests/test_backtest_no_lookahead.py`.
+Key methodological components:
 
-## 4. Setup
+* **Data** — adjusted-close OHLCV via `yfinance`, with a deterministic cached-CSV / synthetic
+  fallback so the pipeline never silently produces no output.
+* **Targets** — residual returns (own return minus rolling-beta-implied market/sector return), not
+  raw returns, so the model is asked to predict what's left after removing systematic exposure.
+  Rolling betas are estimated on a window ending strictly before the target date.
+* **Graph** — rolling correlation graph, window ending at `t-1`, sparsified to the top-k positive
+  edges per node, row-normalised for diffusion.
+  Graph features include neighbour-return diffusion score, residual-shock propagation score, and
+  weighted-degree centrality.
+* **Models** — Ridge and ElasticNet (linear, interpretable, refit from scratch every walk-forward
+  fold) plus a zero-parameter rank-on-diffusion-score baseline, and naive momentum/reversal
+  baselines for context.
+* **Validation** — walk-forward with periodic (quarterly) refit boundaries; every fold trains only
+  on rows dated strictly before the boundary.
+* **Portfolio construction** — cross-sectional ranking into a dollar-neutral long/short quantile
+  book, with a position cap and explicit turnover tracking.
+* **Transaction costs** — a flat per-side bps cost applied against realised turnover, reported as
+  gross-vs-net Sharpe and as a cost-sensitivity sweep.
+* **Benchmark comparison** — evaluated against SPY, QQQ, SMH, and IYT buy-and-hold, with beta, alpha,
+  and information ratio relative to SPY.
+* **Robustness checks** — a permutation test on the rank correlation between predictions and forward
+  returns, and a bootstrap confidence interval on the Sharpe ratio.
 
-Requires Python 3.11+ (developed/tested against 3.10 as well). No paid data APIs.
+## 5. Leakage Controls
 
-```bash
-git clone <this-repo>
-cd graph-diffusion-signals
-make install     # pip install -e ".[dev]"
-```
+No-look-ahead discipline is enforced at every stage, not just assumed:
 
-## 5. Reproduce
+* The rolling correlation graph "for date `t`" is built using only returns through `t-1`.
+* All engineered features use only information available strictly before the target return is
+  realised (rolling-beta residuals use a window ending at `t-1`; graph features use the `t-1` graph).
+* Scalers and models are fit **only** on the training window of each walk-forward fold and never see
+  validation/test-fold data.
+* Portfolio weights for a given date are generated from predictions made before that date's return is
+  realised — the backtest never uses same-day information to size a position for that day.
+* `tests/test_backtest_no_lookahead.py` directly tests this: it builds two datasets identical up to a
+  cutoff and diverging sharply after it, then asserts every prediction dated on or before the cutoff
+  is bit-for-bit identical between the two runs. If any stage leaked future information, this test
+  would fail.
 
-```bash
-make data        # download (or synthesize, if offline) + clean OHLCV, cache to data/raw and data/processed
-make backtest     # feature engineering + walk-forward backtest + robustness stats -> reports/results/
-make report       # build reports/quant_research_report.md and .pdf from saved results
-make test         # run the pytest suite, including the no-look-ahead tests
-make smoke        # fast (~seconds) end-to-end sanity check on a tiny universe/date range
-```
+## 6. Results
 
-Or via the CLI directly: `python -m graph_diffusion_signal.cli {data,backtest,report}`.
+**Two separate results live in this repo, and they must not be conflated.**
 
-## 6. Synthetic-Data Smoke-Test Result (Not a Research Finding)
+### Real-market-data result
 
-*(Synthetic/placebo data -- see the notice at the top of this file. This section exists to show the
-pipeline runs end-to-end and produces sane, leakage-safe output; it is not a claim about real
-markets and should not be cited as a project result. Test period 2019-01-01 onward, quarterly
-walk-forward refit, 5 bps one-way transaction costs.)*
+*(Live adjusted OHLCV via `yfinance`, 2015-01-01 through latest available at run time, test period
+2019-01-01 onward, quarterly walk-forward refit, 5 bps one-way transaction costs. This is the section
+that matters for any CV or interview claim — full detail in
+[`reports/quant_research_report.pdf`](reports/quant_research_report.pdf).)*
+
+| Strategy | Net Ann. Return | Net Sharpe | Gross Sharpe | Avg Daily Turnover |
+| --- | --- | --- | --- | --- |
+| Ridge (graph diffusion features) | -38.7% | -1.81 | -0.84 | 1.95x |
+| ElasticNet (graph diffusion features) | -14.8% | -0.62 | -0.62 | 0.00x |
+| Rank on diffusion score (no fitting) | -23.4% | -0.99 | 0.23 | 2.32x |
+| Naive momentum baseline | -6.9% | -0.13 | 0.14 | 0.57x |
+| Naive reversal baseline | -10.1% | -0.28 | 0.25 | 1.09x |
+| SPY buy & hold | +17.5% | 0.92 | — | — |
+| QQQ buy & hold | +23.4% | 1.00 | — | — |
+| SMH buy & hold | +42.6% | 1.17 | — | — |
+| IYT buy & hold | +11.9% | 0.58 | — | — |
+
+Permutation test on the Ridge signal: Spearman IC = -0.003, p = 0.46 (not significant — indistinguishable
+from a random reshuffling of predictions against forward returns). Bootstrap 90% Sharpe CI: [-2.39, -1.21]
+(does not straddle zero, i.e. the negative result itself is statistically stable — but see the
+permutation test above before reading that as "significantly bad" rather than "significantly not
+useful"). **Conclusion: no edge, gross or net, on this universe and period.** Unlike the earlier
+synthetic smoke test, gross Sharpe here is also negative for the fitted models — the graph-diffusion
+features do not separate winners from losers even before costs are applied. This is a clean, honest
+negative result: the hypothesis was tested rigorously and did not hold up on real data. See
+[Interview Talking Points](#9-interview-talking-points) for how this is framed for a CV or interview.
+**This result — not the synthetic one below — is the one to cite.**
+
+### Synthetic-data smoke-test result (historical, pipeline-correctness only)
+
+*(Kept for reference: this was the result before this repository had access to live market data.
+Test period 2019-01-01 onward, same config, run on a calibrated synthetic OHLCV placebo dataset with
+no injected diffusion effect. It demonstrates the pipeline runs end-to-end and is leakage-safe — it
+is not, and was never presented as, a market finding.)*
 
 | Strategy | Net Ann. Return | Net Sharpe | Gross Sharpe | Avg Daily Turnover |
 | --- | --- | --- | --- | --- |
@@ -116,192 +189,148 @@ walk-forward refit, 5 bps one-way transaction costs.)*
 | Rank on diffusion score (no fitting) | -21.2% | -0.60 | 0.38 | 2.43x |
 | Naive momentum baseline | -19.4% | -0.52 | -0.28 | 0.60x |
 | Naive reversal baseline | -12.8% | -0.25 | 0.18 | 1.12x |
-| SPY buy & hold | +8.3% | 0.40 | -- | -- |
-| SMH buy & hold | +23.7% | 0.65 | -- | -- |
+| SPY buy & hold | +8.3% | 0.40 | — | — |
+| SMH buy & hold | +23.7% | 0.65 | — | — |
 
-Permutation test on the Ridge signal: Spearman IC = 0.006, p = 0.15 (not significant). Bootstrap 90%
-Sharpe CI: [-0.76, 0.40] (straddles zero). **Conclusion on this synthetic run: no cost-robust edge.**
-Gross Sharpe is positive but modest, and is fully consumed (and reversed) by transaction costs at
-realistic turnover. Full tables, the annual-returns breakdown, and the cost/parameter sensitivity
-sweeps are in [`reports/quant_research_report.pdf`](reports/quant_research_report.pdf).
+Permutation test: Spearman IC = 0.006, p = 0.15. Bootstrap 90% Sharpe CI: [-0.76, 0.40] (straddles
+zero). Superseded by the real-market-data result above; retained only to show the synthetic-fallback
+code path was exercised and produced sane, leakage-safe output before real data was available.
 
-## 7. Real-Market-Data Result (fill in after running locally)
+## 7. Reproduction
 
-**Not yet generated.** Run the commands in the notice at the top of this file on a machine with a
-normal internet connection, then replace this whole section with the real output: the headline
-table (same columns as Section 6), the permutation test and bootstrap CI numbers, and one or two
-sentences on whether the signal survived transaction costs. A weak or negative real-data result is
-a perfectly fine, honest outcome to report -- see the [Interview Talking Points](#interview-talking-points)
-below for how to frame it either way.
+```bash
+make install    # pip install -e ".[dev]"
+make data       # download (or synthesize, if offline) + clean OHLCV -> data/raw, data/processed
+make backtest   # feature engineering + walk-forward backtest + robustness stats -> reports/results/
+make report     # build reports/quant_research_report.md and .pdf from saved results
+make test       # run the pytest suite, including the no-look-ahead tests
+make smoke      # fast (~seconds) end-to-end sanity check on a tiny universe/date range
+```
 
-Checklist before treating this as done:
+Or via the CLI directly: `python -m graph_diffusion_signal.cli {data,backtest,report}`.
 
-* [ ] `data/raw/` contains real ticker CSVs and **no** `SYNTHETIC_DATA_NOTICE.txt`
-* [ ] `reports/quant_research_report.pdf` / `.md` no longer shows the synthetic-data notice
-* [ ] `make test` still passes
-* [ ] This section replaced with the real headline table and a one-line honest verdict
+## 8. Repository Structure
 
-## 8. Key Plots
+```
+demos/visual_prototype/   original Manim + Streamlit prototype (intuition, not a research result)
+config/                   universe.yaml, backtest.yaml
+data/                     raw/ (cached OHLCV or synthetic fallback), processed/ (cleaned wide panels)
+notebooks/                01_research_exploration.ipynb
+reports/                  quant_research_report.{md,pdf}, figures/, results/ (intermediate CSV/JSON)
+src/graph_diffusion_signal/  data, features, graph, models, portfolio, backtest, metrics, plots, report, cli
+scripts/                  run_pipeline.py, build_report.py, smoke_test.py
+tests/                    test_features.py, test_graph.py, test_backtest_no_lookahead.py,
+                           test_metrics.py, test_portfolio.py
+```
 
-See `reports/figures/`: `equity_curve.png`, `drawdown.png`, `year_by_year.png`,
-`cost_sensitivity.png`, `avg_abs_coefficients.png`, `coefficients_over_time.png`,
-`graph_param_sensitivity.png`. (Regenerate these by re-running `make report` after `make backtest`
-on real data -- they currently reflect the synthetic smoke test.)
+## 9. Interview Talking Points
 
-## 9. Limitations
+* **Why graph diffusion, specifically?** Static sector labels are a blunt instrument — the actual
+  economic linkages between, say, a GPU maker and a game publisher shift over time (a console cycle,
+  an AI capex wave, a shared supplier). A rolling correlation graph adapts to that instead of
+  assuming a fixed taxonomy, while staying simple enough to compute, inspect, and reason about
+  (row-normalised adjacency, top-k positive edges, no learned graph structure to overfit).
+* **How I avoided look-ahead bias.** Three separate mechanisms, each documented and tested: (1) the
+  correlation graph "for date t" is built only from returns through t-1; (2) rolling-beta residuals
+  are estimated on a window ending at t-1 and only then applied to t's realised factor return; (3)
+  the walk-forward loop retrains from scratch at every refit boundary using only rows with
+  `date < boundary`. `tests/test_backtest_no_lookahead.py` is the test I'd walk an interviewer
+  through first: it builds two datasets identical up to a cutoff and diverging sharply after it, and
+  asserts every prediction on or before the cutoff is bit-for-bit identical between the two runs.
+* **Why walk-forward validation matters here.** A single train/test split would let a favourable
+  window be cherry-picked; walk-forward with quarterly refits forces the model to prove itself
+  repeatedly across changing correlation and volatility regimes, and the year-by-year table shows
+  exactly how unstable that performance is — instability a single split would have hidden.
+* **What transaction costs changed.** On real data, the Ridge strategy's gross Sharpe was already
+  negative (-0.84), so costs made a bad result worse rather than flipping a good one to bad — net
+  Sharpe fell to -1.81 at the default 5 bps assumption and continued to degrade as costs rose (see
+  the cost-sensitivity sweep). Turnover near 1.95x means the book is nearly fully re-traded most
+  days, so even modest per-trade costs compound quickly — which is why the headline table always
+  shows gross and net side by side.
+* **What failed.** On real market data, the graph-diffusion signal shows no edge, gross or net: the
+  permutation test (p ≈ 0.46) finds no significant rank relationship between predictions and forward
+  returns, and while the bootstrap Sharpe CI doesn't straddle zero, that just means the negative
+  result itself is statistically stable, not that there's a signal worth trading. The earlier
+  synthetic-data smoke test (kept for reference) showed a similar pattern at smaller magnitude —
+  weak or no gross edge that transaction costs then erode further. The rank-only baseline (no model
+  fitting at all) performing comparably to the fitted models on both datasets is itself informative:
+  whatever weak structure the diffusion feature contains isn't something the linear models add much
+  value on top of.
+* **What I'd improve with institutional data.** Point-in-time index membership and fundamentals to
+  remove survivorship bias properly; a real borrow/locate feed and market-impact model instead of a
+  flat bps assumption; intraday data to test whether the diffusion delay is sub-daily; and a
+  materially larger universe so the graph has enough breadth to find genuine structure instead of
+  noise.
+* **How this relates to quant research.** The research side is the hypothesis, the feature design,
+  and the honest statistical evaluation of whether it holds up — including being willing to report a
+  null or negative result rather than reframe it.
+* **How this relates to quant development.** The engineering side is making every timing assumption
+  explicit and mechanically testable, building a pipeline a second person could pick up and extend
+  (typed configs, a CLI, modular stages, checkpoint-able intermediate outputs), and treating "no
+  leakage" as a correctness property to be tested, not just asserted in a comment.
 
-* **Synthetic data in this environment.** See the notice at the top -- Section 6 demonstrates
-  pipeline correctness, not a real-market finding. Section 7 is the one that matters for a CV claim.
-* **No survivorship-bias correction.** The universe is today's liquid names in each sector, not a
-  point-in-time constituent list.
-* **Small universe (29 names).** Not enough breadth to diversify idiosyncratic risk in a 20%/20%
-  quantile long/short book.
-* **Simplified execution assumptions.** Flat bps cost, no borrow fee, full fills at the close, no
-  market-impact model -- unrealistic for smaller-cap names in the universe.
-* **Data-snooping risk.** Graph window, top-k, and lag choices came from domain reasoning plus one
+## 10. CV Bullet Options
+
+**Quant Research:**
+> Researched cross-asset graph-diffusion signals for equity return prediction using rolling
+> correlation networks, residual-return targets, walk-forward validation, transaction-cost
+> sensitivity, benchmark comparison, and permutation-based robustness checks.
+
+**Quant Developer:**
+> Engineered a reproducible Python backtesting framework with rolling correlation graphs,
+> leakage-safe feature generation, CLI automation, unit tests, transaction-cost modelling, and
+> automated PDF reporting.
+
+**Short CV version:**
+> Built a leakage-safe equity research framework testing graph-diffusion signals with walk-forward
+> validation, transaction costs, benchmark comparison, Sharpe/drawdown analysis, and robustness
+> checks.
+
+The real-market-data result (Section 6) is negative, so the three bullets above use the
+weak/negative-result framing throughout — do not cite the synthetic-data smoke-test numbers as a
+performance claim in either case.
+
+## 11. Limitations
+
+* **Survivorship bias.** The universe is today's liquid names in each sector, not a point-in-time
+  constituent list; delisted or since-illiquid names are absent by construction.
+* **Yahoo Finance data quality.** Adjusted-close data from `yfinance` can have gaps, restatements,
+  and corporate-action quirks; no independent data-quality audit has been performed.
+* **Liquidity and borrow assumptions.** Shorting is assumed always available at the flat assumed
+  cost, with no borrow fee and no market-impact model — unrealistic for smaller-cap names in the
+  universe.
+* **Transaction-cost simplification.** A flat per-side bps cost applied to turnover, not a
+  volume/liquidity-dependent impact model.
+* **Shorting constraints not modelled.** No locate/availability constraints, no borrow-cost term
+  structure.
+* **Risk of data snooping.** Graph window, top-k, and lag choices came from domain reasoning plus one
   sensitivity sweep, not an independent validation universe.
-* Full discussion in `reports/quant_research_report.pdf`, Section 9.
+* **Small universe (29 names).** Not enough breadth to diversify idiosyncratic risk in a 20%/20%
+  quantile long/short book; single-name moves can dominate.
+* **No point-in-time fundamentals, news, or intraday data.** The feature set is price/volume-only at
+  a daily frequency; a same-day (sub-daily) diffusion effect would not be detectable by this design.
 
-## 10. What This Demonstrates (for Quant Recruiters)
+Full discussion in `reports/quant_research_report.pdf`, Section 9.
 
-* **Independent signal research:** a specific, falsifiable hypothesis (short-horizon cross-asset
-  diffusion via a dynamic correlation graph), motivated by real sector structure rather than
-  data-mined post hoc.
-* **Statistical rigor:** permutation testing, bootstrap confidence intervals, year-by-year and
-  cost-sensitivity breakdowns, and an explicit distinction between gross and net performance.
-* **No look-ahead bias, verifiably:** every timing convention is documented and directly tested --
-  including a test that perturbs future data and checks past predictions are provably unchanged.
-* **Honest reporting under a weak result:** the signal does not survive costs on the available data,
-  and the report says so plainly instead of cherry-picking a favourable cut.
-* **Software engineering standards:** modular package (`data` / `features` / `graph` / `models` /
-  `portfolio` / `backtest` / `metrics` / `plots` / `report` / `cli`), typed dataclasses for config,
-  a CLI, a Makefile, unit tests (including a dedicated leakage-correctness suite), deterministic
-  seeding, logging instead of print spam, and a reproducible PDF report pipeline.
+## 12. What This Demonstrates (for Quant Recruiters)
 
-## 11. Possible CV Bullet
-
-See [CV Bullet Options](#cv-bullet-options) below -- pick the negative-result or positive-result
-phrasing based on what Section 7 actually says once you've run real data.
-
----
-
-## Interview Talking Points
-
-**One-line answer if asked directly why the repo shows synthetic data:** "The first environment I
-built this in blocked Yahoo Finance, so I designed the pipeline to fail safely into a synthetic
-placebo dataset rather than silently producing no output. I did not treat that as evidence of
-alpha -- it's clearly labelled as a smoke test, not a result. Once run locally on real market data,
-the same pipeline downloads adjusted OHLCV, rebuilds the rolling graphs without future leakage, and
-regenerates the full report." That's the answer to have ready; it demonstrates research integrity
-rather than trying to hide the fallback.
-
-**Why graph diffusion, specifically?** Static sector labels are a blunt instrument -- the actual
-economic linkages between, say, a GPU maker and a game publisher shift over time (a console cycle,
-an AI capex wave, a shared supplier). A rolling correlation graph adapts to that instead of assuming
-a fixed taxonomy, while staying simple enough to compute, inspect, and reason about (row-normalised
-adjacency, top-k positive edges, no learned graph structure to overfit).
-
-**How I avoided look-ahead bias.** Three separate mechanisms, each documented and tested: (1) the
-correlation graph "for date t" is built only from returns through t-1; (2) rolling-beta residuals
-are estimated on a window ending at t-1 and only then applied to t's realised factor return; (3) the
-walk-forward loop retrains from scratch at every refit boundary using only rows with `date <
-boundary`. `tests/test_backtest_no_lookahead.py::test_perturbing_future_returns_does_not_change_past_predictions`
-is the test I'd walk an interviewer through first: it builds two datasets identical up to a cutoff
-and diverging sharply after it, and asserts every prediction dated on or before the cutoff is
-bit-for-bit identical between the two runs.
-
-**Why walk-forward validation matters here.** A single train/test split would let me pick a
-favourable window; walk-forward with quarterly refits forces the model to prove itself repeatedly
-across changing correlation and volatility regimes, and the year-by-year table shows exactly how
-unstable that performance is (strongly negative in 2021 and 2023, strongly positive in 2024-2026 in
-this synthetic run) -- instability a single split would have hidden.
-
-**How transaction costs changed the result.** Gross Sharpe for the Ridge strategy was a modest but
-positive ~0.56; at the default 5 bps one-way cost assumption net Sharpe flips to about -0.18, and it
-degrades further (to roughly -3 at 25 bps) as costs rise. The culprit is turnover: an average daily
-turnover near 1.9x (i.e. the book is nearly fully re-traded most days) at even modest per-trade
-costs adds up fast. This is the single most important number in the whole report for judging
-whether a signal is real-world-deployable, and it's why the headline table always shows gross and
-net side by side.
-
-**What failed.** The signal, as built, does not survive transaction costs on the data available in
-this environment, and the permutation test (p ~= 0.15) and bootstrap Sharpe CI (straddling zero) do
-not provide statistical support for a durable edge. The rank-only baseline (no model fitting at all)
-performed similarly to the fitted models, which is itself informative -- it suggests whatever weak
-structure exists in the diffusion feature isn't something the linear models are adding much value on
-top of.
-
-**What I'd improve with institutional data.** Point-in-time index membership and fundamentals to
-remove survivorship bias properly; a real borrow/locate feed and market-impact model instead of a
-flat bps assumption; intraday data to test whether the diffusion delay is sub-daily (this daily-bar
-design could easily be missing a same-day effect); and a materially larger universe so the graph has
-enough breadth to find genuine structure instead of noise.
-
-**How this relates to quant research vs. quant development.** The research side is the hypothesis,
-the feature design, and the honest statistical evaluation of whether it holds up. The engineering
-side -- equally important here -- is making every timing assumption explicit and mechanically
-testable, building a pipeline that a second person could pick up and extend (typed configs, a CLI,
-modular stages, checkpoint-able intermediate outputs), and treating "no leakage" as a correctness
-property to be tested, not just asserted in a comment.
-
-## CV Bullet Options
-
-**First, pick based on the real-data result in Section 7** (fill that in before using any of these
-on an actual CV):
-
-* If real-data performance is **weak/negative** (a perfectly fine, honest outcome):
-  > Built a leakage-safe Python research framework testing cross-asset graph-diffusion equity
-  > signals with walk-forward validation, transaction costs, benchmark comparison, permutation
-  > tests, and Sharpe/drawdown analysis.
-* If real-data performance is **decent**:
-  > Built a walk-forward equity research pipeline testing graph-diffusion signals across
-  > semiconductor, media, and logistics equities, evaluating transaction costs, benchmark-relative
-  > returns, Sharpe, drawdown, and statistical robustness.
-
-**Then, role-specific versions** (combine with whichever result framing above matches Section 7):
-
-1. **Quant Research version (Citadel QR):**
-   > Researched cross-asset graph-diffusion signals for equity return prediction, using rolling
-   > correlation networks, residual-return targets, walk-forward validation, transaction-cost
-   > sensitivity, and permutation-based robustness checks.
-
-2. **Quant Developer version (G-Research):**
-   > Engineered a reproducible Python backtesting framework with rolling correlation graphs,
-   > leakage-safe feature generation, CLI automation, unit tests, transaction-cost modelling, and
-   > automated PDF reporting.
-
-3. **Investment Banking / Tech Sector Research version.**
-
-Longer role-specific drafts, spelled out in full:
-
-1. **Quant Research version:** Designed and tested a cross-asset graph-diffusion hypothesis for
-   equity residual returns across semiconductor, Japanese media/gaming, and transport/logistics
-   equities; built a walk-forward backtest with permutation testing, bootstrap confidence intervals,
-   and cost-sensitivity analysis, and reported a rigorously evaluated (and honestly negative-net)
-   result rather than an overfit backtest.
-
-2. **Quant Developer version:** Engineered a modular, leakage-safe Python research pipeline (rolling
-   graph construction, feature engineering, walk-forward backtesting, transaction-cost modelling)
-   with a typed configuration system, CLI, automated PDF reporting, and a dedicated test suite that
-   directly verifies no-look-ahead correctness by perturbing future data and checking past
-   predictions are unchanged.
-
-3. **Investment Banking / Tech Sector Research version:** Built an independent research project
-   analysing information diffusion across semiconductor supply chains, Japanese gaming/media IP
-   names, and transport/logistics operators, combining sector domain knowledge with a systematic,
-   cost-aware backtesting framework and clear benchmark comparisons (SPY, QQQ, SMH, IYT).
-
-## Repository Structure
-
-```
-config/            universe.yaml, backtest.yaml
-data/               raw/ (cached OHLCV or synthetic fallback), processed/ (cleaned wide panels)
-notebooks/          01_research_exploration.ipynb
-reports/            quant_research_report.{md,pdf}, figures/, results/ (intermediate CSV/JSON)
-src/graph_diffusion_signal/   data, features, graph, models, portfolio, backtest, metrics, plots, report, cli
-scripts/            run_pipeline.py, build_report.py, smoke_test.py
-tests/              test_features.py, test_graph.py, test_backtest_no_lookahead.py, test_metrics.py, test_portfolio.py
-```
+* **Statistical research discipline** — a specific, falsifiable hypothesis, tested with permutation
+  tests, bootstrap confidence intervals, year-by-year and cost-sensitivity breakdowns, and an
+  explicit gross-vs-net distinction, rather than a single cherry-picked backtest number.
+* **Backtesting integrity** — walk-forward validation with periodic refits, transaction costs applied
+  against realised turnover, and benchmark comparison against passive alternatives, not just cash.
+* **Python engineering** — a modular package (`data` / `features` / `graph` / `models` / `portfolio`
+  / `backtest` / `metrics` / `plots` / `report` / `cli`), typed configuration, a CLI, a Makefile, and
+  deterministic seeding.
+* **Testing and reproducibility** — a dedicated unit test suite including a leakage-correctness test
+  that perturbs future data and checks past predictions are provably unchanged, plus a fast smoke
+  test and an automated PDF report pipeline.
+* **Market intuition** — the original visual prototype in `demos/visual_prototype/` shows the idea
+  was explored and understood intuitively before being formalised into a statistically rigorous
+  framework.
+* **Honest reporting of weak/null results** — the real-market-data result (Section 6) is negative,
+  gross and net, and is reported as-is rather than reframed or hidden behind the earlier synthetic
+  smoke test.
 
 ## License
 

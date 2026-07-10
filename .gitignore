@@ -12,3 +12,11 @@ data/processed/*
 reports/results/*
 .DS_Store
 *.log
+
+# demos/visual_prototype/ -- original Manim + Streamlit prototype build artifacts
+demos/visual_prototype/media/Tex/
+demos/visual_prototype/media/texts/
+demos/visual_prototype/media/videos/
+demos/visual_prototype/media/images/
+demos/visual_prototype/gd_data.npz
+demos/visual_prototype/gd_meta.json

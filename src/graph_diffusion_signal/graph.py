@@ -39,7 +39,9 @@ def _adjacency_from_window(window_returns: pd.DataFrame, params: GraphParams) ->
     corr = window_returns.corr()
     tickers = corr.columns
     if not params.self_loops:
-        np.fill_diagonal(corr.values, np.nan)
+        values = corr.to_numpy(copy=True)
+        np.fill_diagonal(values, np.nan)
+        corr = pd.DataFrame(values, index=tickers, columns=tickers)
 
     adj = pd.DataFrame(0.0, index=tickers, columns=tickers)
     for name in tickers:

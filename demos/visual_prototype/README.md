@@ -1,8 +1,17 @@
-# Graph Diffusion Price Predictor (Manim + Streamlit)
+# Graph Diffusion Price Predictor (Manim + Streamlit) — Original Visual Prototype
+
+> **This is the origin story, not the research result.** This folder is the original, intuition-first
+> prototype that started the idea behind [Graph Diffusion Equity Research](../../README.md): if you
+> treat a universe of stocks as a graph and diffuse a signal across it, does that carry predictive
+> information? The prototype answers that question with an animation and an interactive viewer, not
+> statistics. The rigorous version — leakage-safe walk-forward validation, transaction costs,
+> benchmark comparison, permutation/bootstrap tests, and an automated PDF report — lives in the
+> repository root (`src/`, `tests/`, `reports/`). Start there if you're evaluating this as research
+> work; come here for the visual intuition that motivated it.
 
 This mini-project focuses on **one idea**: treat a universe of stocks as a **graph**, diffuse a **cross‑sectional signal** over that graph (message passing), then use the diffused signal to predict **next‑day log returns** (and therefore next‑day prices).
 
-It is meant for **visualization + intuition**, not for investment advice or a production trading system.
+It is meant for **visualization + intuition**, not for investment advice or a production trading system. It predates, and has no statistical rigor compared to, the walk-forward research framework at the repository root.
 
 ### Demo
 

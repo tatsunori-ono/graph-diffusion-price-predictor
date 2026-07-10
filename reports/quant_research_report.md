@@ -2,8 +2,6 @@
 
 *A walk-forward equity research study across semiconductor, Japanese media/gaming, and transport/logistics equities.*
 
-> **Data notice:** live Yahoo Finance data could not be reached from the environment this build ran in, so the results below were computed on a calibrated **synthetic** OHLCV dataset (see `data/raw/SYNTHETIC_DATA_NOTICE.txt`). The synthetic generator reproduces realistic market/sector correlation structure and volatility clustering but contains **no injected lead-lag or diffusion effect** between names -- it is a placebo dataset. Treat every number in this report as a demonstration that the pipeline runs correctly end-to-end and is leakage-safe, **not** as evidence for or against the underlying hypothesis in real markets. Running `make data` with a working internet connection fetches real data through the identical code path and will produce genuine results.
-
 ## 1. Abstract
 
 This project tests whether short-horizon information diffusion across economically connected
@@ -11,9 +9,9 @@ equities -- driven by supply-chain, thematic, and investor-flow linkages -- cont
 predictive information for next-day residual equity returns. A rolling correlation graph is built
 strictly from past returns, and lagged neighbour return / residual-shock features derived from
 that graph are fed into interpretable linear models (Ridge, ElasticNet) inside a walk-forward
-backtest with realistic transaction costs. **The numbers quoted below are from a synthetic-data smoke test** (see the data notice above), included to demonstrate the pipeline runs correctly end-to-end and is leakage-safe -- they are not a claim about real markets. The headline out-of-sample net Sharpe ratio for the
-Ridge strategy over the synthetic smoke-test test period is **-0.18**,
-versus **0.40** for buy-and-hold SPY.
+backtest with realistic transaction costs. The headline out-of-sample net Sharpe ratio for the
+Ridge strategy over the test period is **-1.81**,
+versus **0.92** for buy-and-hold SPY.
 This is a weak/negative result and is reported honestly -- see Sections 9 and the failure-case discussion.
 
 ## 2. Hypothesis
@@ -85,23 +83,23 @@ Costs are charged as `cost_bps / 10,000 * sum(|weight change|)` at each rebalanc
 to gross traded notional. Default: 5 bps one-way. Sensitivity is reported
 at 0, 2, 5, 10, 25 bps.
 
-## 7. Synthetic-Data Smoke-Test Result (Not a Research Finding)
+## 7. Real-Market-Data Result
 
-*This section exists to prove the pipeline runs correctly end-to-end and is leakage-safe on realistic-looking input. It is a placebo dataset with no injected lead-lag effect, so it is deliberately **not** presented as a finding about real markets -- re-run `make data` with internet access and rebuild this report to replace this section with a genuine result.*
+*Computed on live adjusted OHLCV data via yfinance (see Section 3 for exact coverage). This is the section that matters for any CV or interview claim.*
 
 ![Equity Curve](figures/equity_curve.png)
 
 | Strategy | Net Ann. Return | Net Ann. Vol | Net Sharpe | Net Max DD | Gross Sharpe | Avg Turnover |
 | --- | --- | --- | --- | --- | --- | --- |
-| Ridge (graph diffusion features) | -0.1037 | 0.3196 | -0.1825 | -0.8390 | 0.5551 | 1.8714 |
-| ElasticNet (graph diffusion features) | -0.1893 | 0.3266 | -0.4785 | -0.9281 | 0.3203 | 2.0710 |
-| Rank on diffusion score (no fitting) | -0.2118 | 0.3136 | -0.6014 | -0.9459 | 0.3755 | 2.4317 |
-| Naive momentum baseline | -0.1936 | 0.3155 | -0.5238 | -0.9168 | -0.2844 | 0.5995 |
-| Naive reversal baseline | -0.1282 | 0.3299 | -0.2510 | -0.7542 | 0.1768 | 1.1202 |
-| SPY (buy & hold) | 0.0833 | 0.3921 | 0.4005 | -0.7345 | 0.4005 | n/a |
-| QQQ (buy & hold) | 0.1049 | 0.4609 | 0.4463 | -0.5961 | 0.4463 | n/a |
-| SMH (buy & hold) | 0.2373 | 0.6039 | 0.6514 | -0.6649 | 0.6514 | n/a |
-| IYT (buy & hold) | -0.0328 | 0.4901 | 0.1756 | -0.7792 | 0.1756 | n/a |
+| Ridge (graph diffusion features) | -0.3867 | 0.2517 | -1.8139 | -0.9755 | -0.8369 | 1.9525 |
+| ElasticNet (graph diffusion features) | -0.1478 | 0.2194 | -0.6194 | -0.7447 | -0.6189 | 0.0008 |
+| Rank on diffusion score (no fitting) | -0.2341 | 0.2402 | -0.9897 | -0.8863 | 0.2261 | 2.3172 |
+| Naive momentum baseline | -0.0688 | 0.2718 | -0.1261 | -0.6722 | 0.1376 | 0.5688 |
+| Naive reversal baseline | -0.1012 | 0.2586 | -0.2836 | -0.7931 | 0.2456 | 1.0858 |
+| SPY (buy & hold) | 0.1745 | 0.1945 | 0.9245 | -0.3372 | 0.9245 | n/a |
+| QQQ (buy & hold) | 0.2341 | 0.2404 | 0.9958 | -0.3512 | 0.9958 | n/a |
+| SMH (buy & hold) | 0.4259 | 0.3601 | 1.1662 | -0.4530 | 1.1662 | n/a |
+| IYT (buy & hold) | 0.1194 | 0.2482 | 0.5787 | -0.4077 | 0.5787 | n/a |
 
 ![Drawdown](figures/drawdown.png)
 
@@ -111,14 +109,14 @@ at 0, 2, 5, 10, 25 bps.
 
 | Year | Return | Volatility | Sharpe | Max Drawdown | N Days |
 | --- | --- | --- | --- | --- | --- |
-| 2019 | 0.0127 | 0.3144 | 0.1963 | -0.3531 | 260 |
-| 2020 | -0.1675 | 0.3070 | -0.4434 | -0.4256 | 262 |
-| 2021 | -0.1974 | 0.3322 | -0.4965 | -0.3461 | 261 |
-| 2022 | -0.0241 | 0.2955 | 0.0645 | -0.3578 | 260 |
-| 2023 | -0.5466 | 0.3352 | -2.1889 | -0.5778 | 260 |
-| 2024 | 0.1597 | 0.3430 | 0.6041 | -0.3660 | 262 |
-| 2025 | 0.0673 | 0.3322 | 0.3616 | -0.1918 | 261 |
-| 2026 | 0.3956 | 0.2652 | 1.3886 | -0.1048 | 132 |
+| 2019 | -0.4922 | 0.1732 | -3.8204 | -0.4957 | 251 |
+| 2020 | -0.3920 | 0.4019 | -1.0362 | -0.4027 | 253 |
+| 2021 | -0.4975 | 0.1938 | -3.4490 | -0.4971 | 252 |
+| 2022 | -0.4608 | 0.2405 | -2.4453 | -0.4676 | 251 |
+| 2023 | -0.2354 | 0.1665 | -1.5274 | -0.2859 | 250 |
+| 2024 | -0.2039 | 0.2260 | -0.8950 | -0.2906 | 252 |
+| 2025 | -0.3834 | 0.2650 | -1.6896 | -0.5252 | 250 |
+| 2026 | -0.3364 | 0.2812 | -1.3173 | -0.1973 | 125 |
 
 ### Transaction Cost Sensitivity (Ridge)
 
@@ -126,11 +124,11 @@ at 0, 2, 5, 10, 25 bps.
 
 | cost_bps | sharpe | ann_return |
 | --- | --- | --- |
-| 0 | 0.555 | 0.135 |
-| 2 | 0.260 | 0.033 |
-| 5 | -0.182 | -0.104 |
-| 10 | -0.920 | -0.292 |
-| 25 | -3.131 | -0.652 |
+| 0 | -0.837 | -0.215 |
+| 2 | -1.228 | -0.289 |
+| 5 | -1.814 | -0.387 |
+| 10 | -2.789 | -0.521 |
+| 25 | -5.694 | -0.772 |
 
 ### Feature Importance (Ridge, standardised coefficients)
 
@@ -142,11 +140,11 @@ at 0, 2, 5, 10, 25 bps.
 
 | Series | Ann. Return | Ann. Vol | Sharpe | Beta to SPY | Alpha (ann.) | Information Ratio |
 | --- | --- | --- | --- | --- | --- | --- |
-| Ridge strategy (net) | -0.1037 | 0.3196 | -0.1825 | -0.0302 | -0.0522 | -0.4182 |
-| SPY | 0.0833 | 0.3921 | 0.4005 | n/a | n/a | n/a |
-| QQQ | 0.1049 | 0.4609 | 0.4463 | n/a | n/a | n/a |
-| SMH | 0.2373 | 0.6039 | 0.6514 | n/a | n/a | n/a |
-| IYT | -0.0328 | 0.4901 | 0.1756 | n/a | n/a | n/a |
+| Ridge strategy (net) | -0.3867 | 0.2517 | -1.8139 | -0.2048 | -0.3430 | -1.8630 |
+| SPY | 0.1745 | 0.1945 | 0.9245 | n/a | n/a | n/a |
+| QQQ | 0.2341 | 0.2404 | 0.9958 | n/a | n/a | n/a |
+| SMH | 0.4259 | 0.3601 | 1.1662 | n/a | n/a | n/a |
+| IYT | 0.1194 | 0.2482 | 0.5787 | n/a | n/a | n/a |
 
 Naive rule-based baselines (momentum on the same universe, short-term reversal on the same universe)
 are included in the headline table in Section 7 for context -- the graph diffusion features are
@@ -154,14 +152,14 @@ compared against both passive benchmarks and simple systematic alternatives, not
 
 ## 9. Robustness and Failure Cases
 
-**Permutation test** (predictions vs. realised next-day residual return, 56782
+**Permutation test** (predictions vs. realised next-day residual return, 47100
 observations, 200 permutations): observed Spearman IC =
-0.0060, p-value = 0.1542.
+-0.0033, p-value = 0.4627.
 This does not clear conventional significance thresholds, i.e. the observed rank relationship between predictions and forward returns is statistically indistinguishable from a random reshuffling.
 
 **Bootstrap Sharpe ratio (90% CI, 1000
-resamples):** point estimate -0.18, CI [-0.76, 0.40].
-The interval straddles zero, so we cannot reject the possibility that the true out-of-sample Sharpe ratio is zero or negative.
+resamples):** point estimate -1.81, CI [-2.39, -1.21].
+The interval does not straddle zero, though see the permutation test and cost-sensitivity results before drawing conclusions.
 
 **Parameter sensitivity (graph window x top-k, pooled IC):**
 
@@ -169,23 +167,23 @@ The interval straddles zero, so we cannot reject the possibility that the true o
 
 |  | pooled_ic | n_obs |
 | --- | --- | --- |
-| (30, 4) | 0.0128 | 85985 |
-| (30, 8) | 0.0114 | 85985 |
-| (30, 12) | 0.0134 | 85985 |
-| (30, 16) | 0.0144 | 85985 |
-| (60, 4) | 0.0131 | 85376 |
-| (60, 8) | 0.0165 | 85376 |
-| (60, 12) | 0.0163 | 85376 |
-| (60, 16) | 0.0187 | 85376 |
-| (90, 4) | 0.0140 | 84506 |
-| (90, 8) | 0.0181 | 84506 |
-| (90, 12) | 0.0196 | 84506 |
-| (90, 16) | 0.0212 | 84506 |
+| (30, 4) | -0.0011 | 71350 |
+| (30, 8) | -0.0022 | 71350 |
+| (30, 12) | -0.0030 | 71350 |
+| (30, 16) | -0.0033 | 71350 |
+| (60, 4) | -0.0074 | 70825 |
+| (60, 8) | -0.0039 | 70825 |
+| (60, 12) | -0.0023 | 70825 |
+| (60, 16) | -0.0049 | 70825 |
+| (90, 4) | -0.0058 | 70075 |
+| (90, 8) | -0.0048 | 70075 |
+| (90, 12) | -0.0060 | 70075 |
+| (90, 16) | -0.0058 | 70075 |
 
 **Known limitations and failure modes:**
 
 * **Transaction costs matter a lot at this turnover.** Compare gross vs net Sharpe in Section 7 --
-  average daily turnover of 1.87
+  average daily turnover of 1.95
   means even the default 5 bps assumption materially erodes returns, and
   the cost-sensitivity table shows the strategy's Sharpe ratio as costs rise toward realistic
   small-cap/short-borrow levels.
