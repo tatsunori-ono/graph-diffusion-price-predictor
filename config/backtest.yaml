@@ -1,0 +1,63 @@
+# Backtest / research configuration for Cross-Asset Graph Diffusion Signals
+
+random_seed: 42
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  price_field: "Adj Close"
+
+returns:
+  # residualisation method for the prediction target and diffusion features:
+  # "market" -> regress each stock's return on SPY only
+  # "sector" -> regress each stock's return on SPY + its own sector benchmark ETF
+  residual_method: "sector"
+  beta_window: 60          # trading days used for rolling beta regression
+  min_beta_window: 40      # minimum observations required before a beta is estimated
+
+graph:
+  correlation_window: 60   # trading days of trailing returns used to build the graph
+  top_k: 8                 # keep each node's top-k strongest positive correlation edges
+  min_abs_corr: 0.15       # discard edges weaker than this threshold even if in top-k
+  self_loops: false
+
+features:
+  lag_windows: [1, 3, 5, 20]
+  vol_window: 20
+  volume_window: 20
+  momentum_window: 20
+  reversal_window: 5
+
+target:
+  primary_horizon_days: 1
+  secondary_horizon_days: 5
+
+walkforward:
+  train_years: 3            # initial training window length, in years
+  refit_frequency: "Q"      # "M" monthly or "Q" quarterly (quarterly keeps full-history runtime reasonable)
+  test_start: "2019-01-01"  # first date eligible to appear in an out-of-sample test fold
+  min_train_days: 500
+
+models:
+  ridge_alpha_grid: [0.1, 1.0, 10.0, 50.0, 100.0]
+  elasticnet_alpha_grid: [0.001, 0.01, 0.1]
+  elasticnet_l1_ratio: 0.5
+  cv_folds: 4                # time-series CV folds used only within the training window
+
+portfolio:
+  rebalance_frequency: "D"   # "D" daily or "W" weekly
+  long_quantile: 0.2         # top 20% of predicted returns held long
+  short_quantile: 0.2        # bottom 20% of predicted returns held short
+  dollar_neutral: true
+  max_position_weight: 0.15  # cap on any single name's absolute weight
+  vol_target_annual: null    # e.g. 0.10 to enable volatility targeting; null disables it
+
+costs:
+  default_bps: 5
+  sensitivity_bps: [0, 2, 5, 10, 25]
+
+robustness:
+  n_permutations: 200
+  n_bootstrap: 1000
+  graph_topk_grid: [4, 8, 12, 16]
+  corr_window_grid: [30, 60, 90]

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "graph-diffusion-signal"
+version = "0.1.0"
+description = "Cross-Asset Graph Diffusion Signals for Equity Return Prediction: a leakage-safe, walk-forward research pipeline over a semiconductor / Japanese media & gaming / transport-logistics equity universe."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Tatsunori" }]
+
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "scikit-learn>=1.3",
+    "statsmodels>=0.14",
+    "matplotlib>=3.7",
+    "yfinance>=0.2.40",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "reportlab>=4.0"]
+
+[project.scripts]
+graph-diffusion-signal = "graph_diffusion_signal.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
